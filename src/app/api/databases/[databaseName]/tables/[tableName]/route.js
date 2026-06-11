@@ -1,31 +1,12 @@
 import { NextResponse } from "next/server";
 import { apiError, assertAllowedDatabase, assertAllowedTable, maskSensitiveRows, quoteIdentifier } from "@/utils/validators";
-import { getAllowedTables, getMatchingDatabases, getTableRowCount, query } from "@/lib/db";
+import { getAllowedTables, getTableRowCount, query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request, { params }) {
+export async function GET(_request, { params }) {
   try {
-    const { tableName } = await params;
-    const url = new URL(request.url);
-    const requestedDatabase = url.searchParams.get("databaseName");
-    let databaseName = requestedDatabase || null;
-
-    if (!databaseName) {
-      const matchingDatabases = await getMatchingDatabases();
-      for (const candidate of matchingDatabases) {
-        const tables = await getAllowedTables(candidate);
-        if (tables.includes(tableName)) {
-          databaseName = candidate;
-          break;
-        }
-      }
-    }
-
-    if (!databaseName) {
-      return NextResponse.json({ error: "No matching databases found" }, { status: 404 });
-    }
-
+    const { databaseName, tableName } = await params;
     assertAllowedDatabase(databaseName);
     await assertAllowedTable(databaseName, tableName, getAllowedTables);
 

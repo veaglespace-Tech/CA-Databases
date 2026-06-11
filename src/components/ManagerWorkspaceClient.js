@@ -40,6 +40,34 @@ const LEAD_COLUMNS = [
   { key: "copiedAt", label: "Added To Manager", width: "min-w-44", format: "date" },
 ];
 
+const SOURCE_LEAD_COLUMNS = [
+  { key: "sourceDatabase", label: "Source DB", width: "min-w-36" },
+  { key: "fullName", label: "Name", width: "min-w-44" },
+  { key: "email", label: "Email", width: "min-w-56" },
+  { key: "phone", label: "Phone", width: "min-w-36" },
+  { key: "city", label: "City", width: "min-w-36" },
+  { key: "serviceName", label: "Service", width: "min-w-44" },
+  { key: "businessName", label: "Business", width: "min-w-44" },
+  { key: "preferredTime", label: "Preferred Time", width: "min-w-40" },
+  { key: "message", label: "Message", width: "min-w-64" },
+  { key: "sourcePageSlug", label: "Source Slug", width: "min-w-40" },
+  { key: "pagePath", label: "Page Path", width: "min-w-44" },
+  { key: "source", label: "Source", width: "min-w-36" },
+  { key: "formType", label: "Form Type", width: "min-w-40" },
+  { key: "status", label: "Status", width: "min-w-36" },
+  { key: "utmSource", label: "UTM Source", width: "min-w-40" },
+  { key: "utmMedium", label: "UTM Medium", width: "min-w-40" },
+  { key: "utmCampaign", label: "UTM Campaign", width: "min-w-44" },
+  { key: "ipAddress", label: "IP Address", width: "min-w-40" },
+  { key: "userAgent", label: "User Agent", width: "min-w-56" },
+  { key: "serviceId", label: "Service ID", width: "min-w-40" },
+  { key: "assignedToId", label: "Assigned To", width: "min-w-40" },
+  { key: "userId", label: "User ID", width: "min-w-40" },
+  { key: "createdAt", label: "Created", width: "min-w-44", format: "date" },
+  { key: "updatedAt", label: "Updated", width: "min-w-44", format: "date" },
+  { key: "copiedAt", label: "Added To Manager", width: "min-w-44", format: "date" },
+];
+
 const USER_COLUMNS = [
   { key: "sourceDatabase", label: "Source DB", width: "min-w-36" },
   { key: "name", label: "Name", width: "min-w-44" },
@@ -169,6 +197,14 @@ export default function ManagerWorkspaceClient() {
   const [leadDeleting, setLeadDeleting] = useState(null);
   const [leadConfirm, setLeadConfirm] = useState(null);
 
+  // --- Lead state ---
+  const [sourceLeads, setSourceLeads] = useState([]);
+  const [sourceLeadSearch, setSourceLeadSearch] = useState("");
+  const [sourceLeadLoading, setSourceLeadLoading] = useState(true);
+  const [sourceLeadError, setSourceLeadError] = useState("");
+  const [sourceLeadDeleting, setSourceLeadDeleting] = useState(null);
+  const [sourceLeadConfirm, setSourceLeadConfirm] = useState(null);
+
   // --- User state ---
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState("");
@@ -193,6 +229,19 @@ export default function ManagerWorkspaceClient() {
     }
   }, []);
 
+  const loadSourceLeads = useCallback(async () => {
+    setSourceLeadLoading(true);
+    setSourceLeadError("");
+    try {
+      const data = await fetchJson("/api/manager/lead");
+      setSourceLeads(data.rows || []);
+    } catch (err) {
+      setSourceLeadError(err.message);
+    } finally {
+      setSourceLeadLoading(false);
+    }
+  }, []);
+
   const loadUsers = useCallback(async () => {
     setUserLoading(true);
     setUserError("");
@@ -207,6 +256,7 @@ export default function ManagerWorkspaceClient() {
   }, []);
 
   useEffect(() => { loadLeads(); }, [loadLeads]);
+  useEffect(() => { loadSourceLeads(); }, [loadSourceLeads]);
   useEffect(() => { loadUsers(); }, [loadUsers]);
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -238,6 +288,34 @@ export default function ManagerWorkspaceClient() {
     } finally {
       setLeadDeleting(null);
       setLeadConfirm(null);
+    }
+  }
+
+  async function deleteSourceLead(id) {
+    setSourceLeadDeleting(id);
+    setSourceLeadError("");
+    try {
+      const data = await fetchJson(`/api/manager/lead/${id}`, { method: "DELETE" });
+      setSourceLeads(data.rows || []);
+    } catch (err) {
+      setSourceLeadError(err.message);
+    } finally {
+      setSourceLeadDeleting(null);
+      setSourceLeadConfirm(null);
+    }
+  }
+
+  async function deleteAllSourceLeads() {
+    setSourceLeadDeleting("all");
+    setSourceLeadError("");
+    try {
+      const data = await fetchJson("/api/manager/lead", { method: "DELETE" });
+      setSourceLeads(data.rows || []);
+    } catch (err) {
+      setSourceLeadError(err.message);
+    } finally {
+      setSourceLeadDeleting(null);
+      setSourceLeadConfirm(null);
     }
   }
 
@@ -283,6 +361,12 @@ export default function ManagerWorkspaceClient() {
     return users.filter((row) => USER_COLUMNS.some((col) => formatUserCell(row, col).toLowerCase().includes(needle)));
   }, [users, userSearch]);
 
+  const filteredSourceLeads = useMemo(() => {
+    const needle = sourceLeadSearch.trim().toLowerCase();
+    if (!needle) return sourceLeads;
+    return sourceLeads.filter((row) => SOURCE_LEAD_COLUMNS.some((col) => formatLeadCell(row, col).toLowerCase().includes(needle)));
+  }, [sourceLeads, sourceLeadSearch]);
+
   // --- Excel export ---
   function exportLeads() {
     const rows = filteredLeads.map((row) => {
@@ -312,7 +396,21 @@ export default function ManagerWorkspaceClient() {
     );
   }
 
-  const loading = activeTab === "leads" ? leadLoading : userLoading;
+  function exportSourceLeads() {
+    const rows = filteredSourceLeads.map((row) => {
+      const out = {};
+      for (const col of SOURCE_LEAD_COLUMNS) out[col.key] = formatLeadCell(row, col);
+      return out;
+    });
+    downloadCsv(
+      SOURCE_LEAD_COLUMNS.map((c) => c.label),
+      SOURCE_LEAD_COLUMNS.map((c) => c.key),
+      rows,
+      `CEO_CaLeads_Lead_${new Date().toISOString().slice(0, 10)}`
+    );
+  }
+
+  const loading = activeTab === "leads" ? leadLoading : activeTab === "lead" ? sourceLeadLoading : userLoading;
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-white">
@@ -328,6 +426,17 @@ export default function ManagerWorkspaceClient() {
           onCancel={() => setLeadConfirm(null)}
         />
       )}
+      {sourceLeadConfirm && (
+        <ConfirmDialog
+          message={
+            sourceLeadConfirm.type === "all"
+              ? "Delete ALL leads from CEO_CaLeads? This cannot be undone."
+              : "Delete this lead from CEO_CaLeads?"
+          }
+          onConfirm={() => sourceLeadConfirm.type === "all" ? deleteAllSourceLeads() : deleteSourceLead(sourceLeadConfirm.id)}
+          onCancel={() => setSourceLeadConfirm(null)}
+        />
+      )}
       {userConfirm && (
         <ConfirmDialog
           message={
@@ -341,21 +450,27 @@ export default function ManagerWorkspaceClient() {
       )}
 
       <div className="flex">
-        <Sidebar database={MANAGER_DATABASE} modeLabel="Manager DB" onRefresh={activeTab === "leads" ? loadLeads : loadUsers} darkMode={darkMode} onToggleDarkMode={() => setDarkMode((v) => !v)} />
+        <Sidebar
+          database={MANAGER_DATABASE}
+          modeLabel="Manager DB"
+          onRefresh={activeTab === "leads" ? loadLeads : activeTab === "lead" ? loadSourceLeads : loadUsers}
+          darkMode={darkMode}
+          onToggleDarkMode={() => setDarkMode((v) => !v)}
+        />
         <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             {/* Header */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <Breadcrumb databaseName={MANAGER_DATABASE} tableName={activeTab === "leads" ? "RegistrationLead" : "User"} />
+                <Breadcrumb databaseName={MANAGER_DATABASE} tableName={activeTab === "leads" ? "RegistrationLead" : activeTab === "lead" ? "Lead" : "User"} />
                 <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-white">
-                  CEO_CaLeads {activeTab === "leads" ? "RegistrationLead" : "User"}
+                  CEO_CaLeads {activeTab === "leads" ? "RegistrationLead" : activeTab === "lead" ? "Lead" : "User"}
                 </h1>
                 <p className="mt-1 text-sm font-semibold text-brand-700 dark:text-brand-100">{DATABASE_DISPLAY_NAMES[MANAGER_DATABASE]}</p>
               </div>
               <button
                 type="button"
-                onClick={activeTab === "leads" ? loadLeads : loadUsers}
+                onClick={activeTab === "leads" ? loadLeads : activeTab === "lead" ? loadSourceLeads : loadUsers}
                 className="flex h-11 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-bold text-white hover:bg-brand-700"
               >
                 <RefreshCcw size={17} aria-hidden="true" />
@@ -373,8 +488,19 @@ export default function ManagerWorkspaceClient() {
                     ? "border-b-2 border-brand-600 text-brand-700 dark:text-brand-300"
                     : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                 }`}
+                >
+                  RegistrationLead
+                </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("lead")}
+                className={`h-10 px-4 text-sm font-bold transition-colors ${
+                  activeTab === "lead"
+                    ? "border-b-2 border-brand-600 text-brand-700 dark:text-brand-300"
+                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
               >
-                RegistrationLead
+                Lead
               </button>
               <button
                 type="button"
@@ -400,6 +526,16 @@ export default function ManagerWorkspaceClient() {
               </div>
             ) : null}
 
+            {sourceLeadError && activeTab === "lead" ? (
+              <div className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+                <AlertTriangle size={20} aria-hidden="true" />
+                <div>
+                  <p className="font-bold">Unable to load manager leads</p>
+                  <p className="mt-1 text-sm">{sourceLeadError}</p>
+                </div>
+              </div>
+            ) : null}
+
             {userError && activeTab === "users" ? (
               <div className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <AlertTriangle size={20} aria-hidden="true" />
@@ -421,25 +557,27 @@ export default function ManagerWorkspaceClient() {
                 <div className="flex flex-col gap-3 border-b border-slate-200 p-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h2 className="text-base font-bold text-slate-950 dark:text-white">
-                      {activeTab === "leads" ? "Manager RegistrationLead" : "Manager User"}
+                      {activeTab === "leads" ? "Manager RegistrationLead" : activeTab === "lead" ? "Manager Lead" : "Manager User"}
                     </h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                       {activeTab === "leads"
                         ? `${filteredLeads.length.toLocaleString()} saved leads`
+                        : activeTab === "lead"
+                          ? `${filteredSourceLeads.length.toLocaleString()} saved leads`
                         : `${filteredUsers.length.toLocaleString()} saved users`}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <SearchBar
-                      value={activeTab === "leads" ? leadSearch : userSearch}
-                      onChange={activeTab === "leads" ? setLeadSearch : setUserSearch}
-                      placeholder={activeTab === "leads" ? "Search manager leads" : "Search manager users"}
+                      value={activeTab === "leads" ? leadSearch : activeTab === "lead" ? sourceLeadSearch : userSearch}
+                      onChange={activeTab === "leads" ? setLeadSearch : activeTab === "lead" ? setSourceLeadSearch : setUserSearch}
+                      placeholder={activeTab === "leads" ? "Search manager registration leads" : activeTab === "lead" ? "Search manager leads" : "Search manager users"}
                     />
                     {/* Excel export */}
                     <button
                       type="button"
-                      onClick={activeTab === "leads" ? exportLeads : exportUsers}
-                      disabled={activeTab === "leads" ? filteredLeads.length === 0 : filteredUsers.length === 0}
+                      onClick={activeTab === "leads" ? exportLeads : activeTab === "lead" ? exportSourceLeads : exportUsers}
+                      disabled={activeTab === "leads" ? filteredLeads.length === 0 : activeTab === "lead" ? filteredSourceLeads.length === 0 : filteredUsers.length === 0}
                       title="Download visible rows as Excel/CSV"
                       className="flex h-10 shrink-0 items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 text-sm font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-900"
                     >
@@ -452,9 +590,17 @@ export default function ManagerWorkspaceClient() {
                       onClick={() =>
                         activeTab === "leads"
                           ? setLeadConfirm({ type: "all" })
+                          : activeTab === "lead"
+                            ? setSourceLeadConfirm({ type: "all" })
                           : setUserConfirm({ type: "all" })
                       }
-                      disabled={activeTab === "leads" ? leadDeleting !== null || leads.length === 0 : userDeleting !== null || users.length === 0}
+                      disabled={
+                        activeTab === "leads"
+                          ? leadDeleting !== null || leads.length === 0
+                          : activeTab === "lead"
+                            ? sourceLeadDeleting !== null || sourceLeads.length === 0
+                            : userDeleting !== null || users.length === 0
+                      }
                       className="flex h-10 shrink-0 items-center gap-2 rounded-lg bg-red-600 px-4 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Trash size={15} aria-hidden="true" />
@@ -505,6 +651,64 @@ export default function ManagerWorkspaceClient() {
                                 </button>
                               </td>
                               {LEAD_COLUMNS.map((col) => (
+                                <td
+                                  key={col.key}
+                                  className={`${col.width} max-w-72 border-b border-r border-slate-100 px-3 py-3 align-top text-slate-700 first:border-l dark:border-slate-900 dark:text-slate-300`}
+                                  title={col.key === "sourceDatabase" ? row.sourceDatabase : formatLeadCell(row, col)}
+                                >
+                                  {renderCell(row, col, formatLeadCell)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                )}
+
+                {/* ---- SOURCE LEAD TABLE ---- */}
+                {activeTab === "lead" && (
+                  filteredSourceLeads.length === 0 ? (
+                    <div className="p-10 text-center">
+                      <p className="font-semibold text-slate-800 dark:text-slate-200">No manager leads saved yet</p>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Open valuexpert Lead and use Add to save leads here.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
+                        <thead>
+                          <tr>
+                            <th className="min-w-24 border-b border-r border-slate-200 bg-slate-50 px-3 py-3 font-bold text-slate-700 first:border-l dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+                              Actions
+                            </th>
+                            {SOURCE_LEAD_COLUMNS.map((col) => (
+                              <th
+                                key={col.key}
+                                scope="col"
+                                className={`${col.width} border-b border-r border-slate-200 bg-slate-50 px-3 py-3 font-bold text-slate-700 first:border-l dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200`}
+                              >
+                                {col.label}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredSourceLeads.map((row, rowIndex) => (
+                            <tr key={row.id || rowIndex} className="hover:bg-slate-50 dark:hover:bg-slate-900/70">
+                              <td className="border-b border-r border-slate-100 px-3 py-3 align-top first:border-l dark:border-slate-900">
+                                <button
+                                  type="button"
+                                  onClick={() => setSourceLeadConfirm({ type: "one", id: row.id })}
+                                  disabled={sourceLeadDeleting !== null}
+                                  className="flex h-9 items-center gap-1.5 rounded-lg bg-red-600 px-3 text-xs font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                  title="Delete this lead"
+                                >
+                                  <Trash2 size={13} aria-hidden="true" />
+                                  Delete
+                                </button>
+                              </td>
+                              {SOURCE_LEAD_COLUMNS.map((col) => (
                                 <td
                                   key={col.key}
                                   className={`${col.width} max-w-72 border-b border-r border-slate-100 px-3 py-3 align-top text-slate-700 first:border-l dark:border-slate-900 dark:text-slate-300`}

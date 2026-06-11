@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ArrowRight, Table2 } from "lucide-react";
 
-export default function TableCard({ table }) {
+export default function TableCard({ table, databaseName = "valuexpert" }) {
   return (
     <Link
-      href={`/table/${encodeURIComponent(table.name)}`}
+      href={`/database/${encodeURIComponent(databaseName)}/table/${encodeURIComponent(table.name)}`}
       className="group rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-500 hover:shadow-soft dark:border-slate-800 dark:bg-slate-950 dark:hover:border-brand-500"
     >
       <div className="flex items-start justify-between gap-4">

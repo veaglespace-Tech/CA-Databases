@@ -30,8 +30,11 @@ export function downloadCsv(headers, keys, rows, filename = "export") {
   const link = document.createElement("a");
   link.href = url;
   link.download = `${filename}.csv`;
+  link.style.display = "none";
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 1000);
 }

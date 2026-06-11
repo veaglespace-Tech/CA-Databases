@@ -1,22 +1,14 @@
 import { NextResponse } from "next/server";
 import { apiError, assertAllowedDatabase } from "@/utils/validators";
-import { getDatabaseSummary, getMatchingDatabases } from "@/lib/db";
+import { getDatabaseSummary } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request) {
+export async function GET(_request, { params }) {
   try {
-    const url = new URL(request.url);
-    const requestedDatabase = url.searchParams.get("databaseName");
-    const databaseName = requestedDatabase || (await getMatchingDatabases())[0];
-
-    if (!databaseName) {
-      return NextResponse.json({ error: "No matching databases found" }, { status: 404 });
-    }
-
+    const { databaseName } = await params;
     assertAllowedDatabase(databaseName);
     const database = await getDatabaseSummary(databaseName);
-
     return NextResponse.json({
       ...database,
       lastRefresh: new Date().toISOString(),

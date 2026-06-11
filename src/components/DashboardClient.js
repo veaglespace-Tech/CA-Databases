@@ -8,7 +8,6 @@ import TableCard from "@/components/TableCard";
 import SearchBar from "@/components/SearchBar";
 import Breadcrumb from "@/components/Breadcrumb";
 import { CardSkeleton } from "@/components/Skeletons";
-import { DATABASE_DISPLAY_NAMES, MANAGER_TABLES } from "@/config/databases";
 
 async function fetchJson(url) {
   const response = await fetch(url, { cache: "no-store" });
@@ -17,11 +16,16 @@ async function fetchJson(url) {
   return data;
 }
 
-export default function DashboardClient({ showTables = false }) {
+function matchesSearch(value, needle) {
+  if (!needle) return true;
+  return value.toLowerCase().includes(needle);
+}
+
+export default function DashboardClient({ databaseName = null }) {
+  const [databases, setDatabases] = useState([]);
   const [database, setDatabase] = useState(null);
-  const [tables, setTables] = useState([]);
+  const [lastRefresh, setLastRefresh] = useState(null);
   const [search, setSearch] = useState("");
-  const [showAllTables, setShowAllTables] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [darkMode, setDarkMode] = useState(false);
@@ -30,18 +34,26 @@ export default function DashboardClient({ showTables = false }) {
     setLoading(true);
     setError("");
     try {
-      const [databaseData, tableData] = await Promise.all([
-        fetchJson("/api/database"),
-        showTables ? fetchJson("/api/tables") : Promise.resolve([]),
-      ]);
-      setDatabase(databaseData);
-      setTables(tableData);
+      if (databaseName) {
+        const [databasesData, databaseData] = await Promise.all([
+          fetchJson("/api/databases"),
+          fetchJson(`/api/databases/${encodeURIComponent(databaseName)}`),
+        ]);
+        setDatabases(databasesData.databases || []);
+        setDatabase(databaseData);
+        setLastRefresh(databaseData.lastRefresh || databasesData.lastRefresh || null);
+      } else {
+        const data = await fetchJson("/api/databases");
+        setDatabases(data.databases || []);
+        setDatabase(null);
+        setLastRefresh(data.lastRefresh || null);
+      }
     } catch (requestError) {
       setError(requestError.message);
     } finally {
       setLoading(false);
     }
-  }, [showTables]);
+  }, [databaseName]);
 
   useEffect(() => {
     loadData();
@@ -51,36 +63,54 @@ export default function DashboardClient({ showTables = false }) {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
-  const filteredTables = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    if (!needle) return tables;
-    return tables.filter((table) => table.name.toLowerCase().includes(needle));
-  }, [search, tables]);
+  const databaseNames = useMemo(() => databases.map((item) => item.database), [databases]);
 
-  const managerTables = useMemo(
-    () => MANAGER_TABLES.map((tableName) => tables.find((table) => table.name === tableName)).filter(Boolean),
-    [tables]
-  );
+  const visibleDatabases = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return databases;
+    return databases.filter(
+      (item) =>
+        matchesSearch(item.database, needle) ||
+        item.tables?.some((table) => matchesSearch(table.name, needle))
+    );
+  }, [databases, search]);
+
+  const visibleTables = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!database) return [];
+    if (!needle) return database.tables || [];
+    return (database.tables || []).filter((table) => matchesSearch(table.name, needle));
+  }, [database, search]);
+
+  const activeDatabase = databaseName || "overview";
+  const isOverview = !databaseName;
+  const sidebarDatabaseNames = databaseNames;
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-white">
       <div className="flex">
-        <Sidebar database={database?.database} onRefresh={loadData} darkMode={darkMode} onToggleDarkMode={() => setDarkMode((value) => !value)} />
+        <Sidebar
+          database={activeDatabase}
+          databaseNames={sidebarDatabaseNames}
+          onRefresh={loadData}
+          darkMode={darkMode}
+          onToggleDarkMode={() => setDarkMode((value) => !value)}
+        />
         <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <Breadcrumb databaseName={showTables ? "valuexpert" : undefined} />
+                <Breadcrumb databaseName={databaseName || undefined} />
                 <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-white">
-                  {showTables ? "valuexpert Tables" : "Databases"}
+                  {isOverview ? "valuexpert Databases" : `${databaseName} Tables`}
                 </h1>
-                {showTables ? (
-                  <p className="mt-1 text-base font-semibold text-brand-700 dark:text-brand-100">
-                    {DATABASE_DISPLAY_NAMES.valuexpert}
-                  </p>
-                ) : null}
+                <p className="mt-1 text-base font-semibold text-brand-700 dark:text-brand-100">
+                  {isOverview
+                    ? "All databases that contain valuexpert in their name, grouped with their tables."
+                    : `Read-only tables for ${databaseName}.`}
+                </p>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Last refresh: {database?.lastRefresh ? new Date(database.lastRefresh).toLocaleString() : "Not loaded"}
+                  Last refresh: {lastRefresh ? new Date(lastRefresh).toLocaleString() : "Not loaded"}
                 </p>
               </div>
               <button
@@ -93,6 +123,14 @@ export default function DashboardClient({ showTables = false }) {
               </button>
             </div>
 
+            <div className="mt-6">
+              <SearchBar
+                value={search}
+                onChange={setSearch}
+                placeholder={isOverview ? "Search databases or tables" : "Search tables"}
+              />
+            </div>
+
             {error ? (
               <div className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <AlertTriangle size={20} aria-hidden="true" />
@@ -103,73 +141,71 @@ export default function DashboardClient({ showTables = false }) {
               </div>
             ) : null}
 
-            <div className="mt-6">
-              {loading ? (
-                <div className="grid gap-4 md:grid-cols-3">
-                  <CardSkeleton />
-                  <CardSkeleton />
-                  <CardSkeleton />
-                </div>
-              ) : (
-                <DatabaseCard database={database} href={showTables ? undefined : "/database/valuexpert"} />
-              )}
-            </div>
-
-            {showTables ? (
-            <section className="mt-8">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-950 dark:text-white">Main Tables</h2>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Manager focus: User and RegistrationLead.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAllTables((value) => !value)}
-                  className="flex h-11 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
-                >
-                  {showAllTables ? "Hide all tables" : "Show all tables"}
-                </button>
+            {loading ? (
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <CardSkeleton />
+                <CardSkeleton />
+                <CardSkeleton />
               </div>
-
-              {loading ? (
-                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {Array.from({ length: 2 }).map((_, index) => (
-                    <CardSkeleton key={index} />
-                  ))}
-                </div>
-              ) : managerTables.length ? (
-                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {managerTables.map((table) => (
-                    <TableCard key={table.name} table={table} />
+            ) : isOverview ? (
+              visibleDatabases.length ? (
+                <div className="mt-6 space-y-8">
+                  {visibleDatabases.map((item) => (
+                    <section key={item.database} className="space-y-4">
+                      <DatabaseCard database={item} href={`/database/${encodeURIComponent(item.database)}`} />
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {item.tables
+                          .filter((table) => {
+                            const needle = search.trim().toLowerCase();
+                            return !needle || matchesSearch(table.name, needle) || matchesSearch(item.database, needle);
+                          })
+                          .map((table) => (
+                            <TableCard key={`${item.database}-${table.name}`} table={table} databaseName={item.database} />
+                          ))}
+                      </div>
+                    </section>
                   ))}
                 </div>
               ) : (
-                <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-950">
-                  <p className="font-bold text-slate-900 dark:text-white">No tables found</p>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Try refreshing or changing the table search.</p>
+                <div className="mt-6 rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-950">
+                  <p className="font-bold text-slate-900 dark:text-white">No matching databases found</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Try refreshing or widening the search.
+                  </p>
                 </div>
-              )}
+              )
+            ) : (
+              <>
+                <div className="mt-6">
+                  <DatabaseCard database={database} />
+                </div>
 
-              {showAllTables ? (
-                <div className="mt-8">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-950 dark:text-white">All Tables</h2>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Full read-only list from valuexpert.</p>
+                {visibleTables.length ? (
+                  <div className="mt-8">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                      <div>
+                        <h2 className="text-xl font-bold text-slate-950 dark:text-white">All Tables</h2>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                          Read-only table list for {databaseName}.
+                        </p>
+                      </div>
                     </div>
-                    <div className="w-full md:max-w-sm">
-                      <SearchBar value={search} onChange={setSearch} placeholder="Search all tables" />
+                    <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {visibleTables.map((table) => (
+                        <TableCard key={table.name} table={table} databaseName={databaseName} />
+                      ))}
                     </div>
                   </div>
-                  <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {filteredTables.map((table) => (
-                      <TableCard key={table.name} table={table} />
-                    ))}
+                ) : (
+                  <div className="mt-8 rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-950">
+                    <p className="font-bold text-slate-900 dark:text-white">No tables found</p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      Try refreshing or changing the table search.
+                    </p>
                   </div>
-                </div>
-              ) : null}
-            </section>
-            ) : null}
+                )}
+              </>
+            )}
           </div>
         </main>
       </div>

@@ -1,6 +1,6 @@
 # Valuexpert MySQL Dashboard
 
-A production-oriented, read-only Next.js 15 App Router dashboard for managers to inspect the `valuexpert` MySQL database without exposing credentials or other databases.
+A production-oriented, read-only Next.js 15 App Router dashboard for managers to inspect every MySQL database whose name contains `valuexpert`, without exposing credentials or other databases.
 
 ## Install
 
@@ -18,7 +18,7 @@ DB_USER=readonly_user
 DB_PASSWORD=your_password
 ```
 
-Use a MySQL account with read-only permissions for the `valuexpert` database only.
+Use a MySQL account with read-only permissions for the `valuexpert`-named databases you want to inspect.
 
 ## Run
 
@@ -30,8 +30,8 @@ Open `http://localhost:3000`.
 
 ## Security Notes
 
-- Only the `valuexpert` database is allowlisted in `src/config/databases.js`.
+- Databases are allowlisted by name pattern in `src/utils/validators.js`.
 - API routes validate the database name and table name on every request.
-- Tables are allowlisted dynamically from `SHOW TABLES FROM valuexpert`.
+- Tables are allowlisted dynamically from each matching database with `SHOW TABLES FROM <database>`.
 - All public routes are read-only and perform no write, schema, or destructive SQL operations.
 - MySQL credentials stay server-side in `.env.local`.

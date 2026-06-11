@@ -1,9 +1,12 @@
-import { ALLOWED_DATABASES } from "@/config/databases";
+import { MANAGER_DATABASE, VALUEXPERT_DATABASE_FRAGMENT } from "@/config/databases";
 
 const SENSITIVE_COLUMN_PATTERN = /(password|passcode|passwd|secret|token|otp|hash|salt|api[_-]?key|private[_-]?key)/i;
 
 export function isAllowedDatabase(databaseName) {
-  return ALLOWED_DATABASES.includes(databaseName);
+  return (
+    typeof databaseName === "string" &&
+    (databaseName === MANAGER_DATABASE || databaseName.toLowerCase().includes(VALUEXPERT_DATABASE_FRAGMENT))
+  );
 }
 
 export function assertAllowedDatabase(databaseName) {

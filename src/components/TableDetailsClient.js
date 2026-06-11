@@ -7,6 +7,7 @@ import Sidebar from "@/components/Sidebar";
 import Breadcrumb from "@/components/Breadcrumb";
 import DataTable from "@/components/DataTable";
 import RegistrationLeadSummary from "@/components/RegistrationLeadSummary";
+import LeadSummary from "@/components/LeadSummary";
 import UserSummary from "@/components/UserSummary";
 import { TableSkeleton } from "@/components/Skeletons";
 
@@ -60,26 +61,27 @@ function orderColumns(tableName, columns = []) {
   });
 }
 
-export default function TableDetailsClient({ tableName }) {
+export default function TableDetailsClient({ databaseName = "valuexpert", tableName }) {
   const [table, setTable] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [darkMode, setDarkMode] = useState(false);
   const isRegistrationLead = tableName === "RegistrationLead";
+  const isLead = tableName === "Lead";
   const isUser = tableName === "User";
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const data = await fetchJson(`/api/tables/${encodeURIComponent(tableName)}`);
+      const data = await fetchJson(`/api/databases/${encodeURIComponent(databaseName)}/tables/${encodeURIComponent(tableName)}`);
       setTable(data);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
       setLoading(false);
     }
-  }, [tableName]);
+  }, [databaseName, tableName]);
 
   useEffect(() => {
     loadData();
@@ -92,15 +94,15 @@ export default function TableDetailsClient({ tableName }) {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-white">
       <div className="flex">
-        <Sidebar database="valuexpert" onRefresh={loadData} darkMode={darkMode} onToggleDarkMode={() => setDarkMode((value) => !value)} />
+        <Sidebar database={databaseName} onRefresh={loadData} darkMode={darkMode} onToggleDarkMode={() => setDarkMode((value) => !value)} />
         <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="min-w-0">
-                <Breadcrumb databaseName="valuexpert" tableName={tableName} />
+                <Breadcrumb databaseName={databaseName} tableName={tableName} />
                 <h1 className="mt-3 break-all text-3xl font-bold text-slate-950 dark:text-white">{tableName}</h1>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {table?.totalRecords?.toLocaleString() ?? 0} total records{isRegistrationLead || isUser ? "" : ` · ${table?.columns?.length ?? 0} columns`}
+                  {table?.totalRecords?.toLocaleString() ?? 0} total records{isRegistrationLead || isLead || isUser ? "" : ` · ${table?.columns?.length ?? 0} columns`}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -139,9 +141,11 @@ export default function TableDetailsClient({ tableName }) {
             ) : table ? (
               <div className="mt-6 space-y-6">
                 {isRegistrationLead ? (
-                  <RegistrationLeadSummary rows={table.rows} sourceDatabase="valuexpert" />
+                  <RegistrationLeadSummary rows={table.rows} sourceDatabase={databaseName} />
+                ) : isLead ? (
+                  <LeadSummary rows={table.rows} sourceDatabase={databaseName} />
                 ) : isUser ? (
-                  <UserSummary rows={table.rows} sourceDatabase="valuexpert" />
+                  <UserSummary rows={table.rows} sourceDatabase={databaseName} />
                 ) : (
                   <>
                     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
