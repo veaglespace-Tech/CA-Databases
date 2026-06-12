@@ -104,6 +104,21 @@ export default function TableDetailsClient({ databaseName = "valuexpert", tableN
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   {table?.totalRecords?.toLocaleString() ?? 0} total records{isRegistrationLead || isLead || isUser ? "" : ` · ${table?.columns?.length ?? 0} columns`}
                 </p>
+                {table?.statusCounts && Object.keys(table.statusCounts).length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {Object.entries(table.statusCounts).map(([status, count]) => (
+                      <span key={status} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300">
+                        <span className={`h-2 w-2 rounded-full ${
+                          status.toLowerCase() === 'new' ? 'bg-blue-500' : 
+                          status.toLowerCase() === 'completed' || status.toLowerCase() === 'converted' ? 'bg-emerald-500' : 
+                          status.toLowerCase() === 'pending' || status.toLowerCase() === 'in progress' ? 'bg-amber-500' : 
+                          status.toLowerCase() === 'rejected' || status.toLowerCase() === 'failed' ? 'bg-red-500' : 'bg-slate-400'
+                        }`} />
+                        {status}: {count}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 <Link

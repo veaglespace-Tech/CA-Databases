@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, RefreshCcw } from "lucide-react";
+import { AlertTriangle, RefreshCcw, LogOut, Shield } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import DatabaseCard from "@/components/DatabaseCard";
 import TableCard from "@/components/TableCard";
@@ -22,6 +23,7 @@ function matchesSearch(value, needle) {
 }
 
 export default function DashboardClient({ databaseName = null }) {
+  const router = useRouter();
   const [databases, setDatabases] = useState([]);
   const [database, setDatabase] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
@@ -29,6 +31,21 @@ export default function DashboardClient({ databaseName = null }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [darkMode, setDarkMode] = useState(false);
+
+  // Auth state
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((data) => { if (data.authenticated) setCurrentUser(data.user); })
+      .catch(() => {});
+  }, []);
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  }
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -113,14 +130,38 @@ export default function DashboardClient({ databaseName = null }) {
                   Last refresh: {lastRefresh ? new Date(lastRefresh).toLocaleString() : "Not loaded"}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={loadData}
-                className="flex h-11 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-bold text-white hover:bg-brand-700"
-              >
-                <RefreshCcw size={17} aria-hidden="true" />
-                Refresh
-              </button>
+
+              {/* Right header: user badge + refresh */}
+              <div className="flex items-center gap-3">
+                {currentUser && (
+                  <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-indigo-600 text-xs font-bold text-white">
+                      {currentUser.username[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{currentUser.username}</p>
+                      <p className="text-xs capitalize text-slate-500 dark:text-slate-400 leading-tight">{currentUser.role}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      title="Logout"
+                      className="ml-2 flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400 transition-colors"
+                    >
+                      <LogOut size={16} />
+                      <span className="hidden sm:inline">Logout</span>
+                    </button>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={loadData}
+                  className="flex h-11 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-bold text-white hover:bg-brand-700"
+                >
+                  <RefreshCcw size={17} aria-hidden="true" />
+                  Refresh
+                </button>
+              </div>
             </div>
 
             <div className="mt-6">
@@ -132,12 +173,27 @@ export default function DashboardClient({ databaseName = null }) {
             </div>
 
             {error ? (
-              <div className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
-                <AlertTriangle size={20} aria-hidden="true" />
-                <div>
-                  <p className="font-bold">Unable to load dashboard</p>
-                  <p className="mt-1 text-sm">{error}</p>
+              <div className="mt-6 flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle size={20} aria-hidden="true" />
+                  <div>
+                    <p className="font-bold">Unable to load dashboard</p>
+                    <p className="mt-1 text-sm">{error}</p>
+                  </div>
                 </div>
+                {error === "Unauthorized" && (
+                  <div className="flex items-center gap-2">
+                    <Shield size={14} />
+                    <span className="text-sm font-medium">Session expired.</span>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/login")}
+                      className="rounded-md bg-red-600 px-3 py-1 text-xs font-bold text-white hover:bg-red-700"
+                    >
+                      Login Again
+                    </button>
+                  </div>
+                )}
               </div>
             ) : null}
 
@@ -153,16 +209,6 @@ export default function DashboardClient({ databaseName = null }) {
                   {visibleDatabases.map((item) => (
                     <section key={item.database} className="space-y-4">
                       <DatabaseCard database={item} href={`/database/${encodeURIComponent(item.database)}`} />
-                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {item.tables
-                          .filter((table) => {
-                            const needle = search.trim().toLowerCase();
-                            return !needle || matchesSearch(table.name, needle) || matchesSearch(item.database, needle);
-                          })
-                          .map((table) => (
-                            <TableCard key={`${item.database}-${table.name}`} table={table} databaseName={item.database} />
-                          ))}
-                      </div>
                     </section>
                   ))}
                 </div>

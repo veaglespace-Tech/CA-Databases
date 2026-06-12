@@ -1,5 +1,5 @@
 import mysql from "mysql2/promise";
-import { DEFAULT_DATABASE, VALUEXPERT_DATABASE_FRAGMENT } from "@/config/databases";
+import { DEFAULT_DATABASE, VALUEXPERT_DATABASE_FRAGMENT, VALUEXPERT_MAIN_TABLES } from "@/config/databases";
 import { assertAllowedDatabase, quoteIdentifier } from "@/utils/validators";
 
 let pool;
@@ -32,7 +32,13 @@ export async function getAllowedTables(databaseName = DEFAULT_DATABASE) {
 
   const rows = await query(`SHOW TABLES FROM ${quoteIdentifier(databaseName)}`);
   const tableKey = `Tables_in_${databaseName}`;
-  return rows.map((row) => row[tableKey]).filter(Boolean);
+  const tables = rows.map((row) => row[tableKey]).filter(Boolean);
+
+  if (databaseName.toLowerCase().includes(VALUEXPERT_DATABASE_FRAGMENT)) {
+    return tables.filter((tableName) => VALUEXPERT_MAIN_TABLES.includes(tableName));
+  }
+
+  return tables;
 }
 
 export async function getTableRowCount(databaseName, tableName) {
@@ -45,16 +51,32 @@ export async function getTableRowCount(databaseName, tableName) {
 
 export async function getTablesWithCounts(databaseName = DEFAULT_DATABASE) {
   assertAllowedDatabase(databaseName);
-  const tables = await getAllowedTables(databaseName);
+  
+  // Get exactly which tables are allowed/visible for this database
+  const allowedTableNames = await getAllowedTables(databaseName);
+  if (!allowedTableNames.length) return [];
 
-  const counts = await Promise.all(
-    tables.map(async (tableName) => ({
-      name: tableName,
-      rowCount: await getTableRowCount(databaseName, tableName),
-    }))
+  // Query information_schema for fast approximate row counts of ALL tables in this db at once
+  const rows = await query(
+    `SELECT TABLE_NAME as name, TABLE_ROWS as rowCount 
+     FROM information_schema.TABLES 
+     WHERE TABLE_SCHEMA = ?`,
+    [databaseName]
   );
+  
+  // Map rows to a dictionary for fast lookup
+  const countMap = {};
+  for (const row of rows) {
+    countMap[row.name] = Number(row.rowCount || 0);
+  }
 
-  return counts.sort((a, b) => a.name.localeCompare(b.name));
+  // Filter only allowed tables and assign their count (O(1) lookup)
+  const tables = allowedTableNames.map(name => ({
+    name,
+    rowCount: countMap[name] || 0
+  }));
+
+  return tables.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getMatchingDatabases() {

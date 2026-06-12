@@ -83,9 +83,12 @@ function formatExportCell(row, column) {
 function StatusCell({ value }) {
   const label = displayValue(value) || EMPTY_TEXT;
   const isNew = label === "NEW";
+  const isPending = label === "PENDING" || label === "IN_PROGRESS";
   const isConverted = label === "CONVERTED";
   const className = isConverted
     ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:ring-emerald-900"
+    : isPending
+      ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:ring-amber-900"
     : isNew
       ? "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950 dark:text-sky-200 dark:ring-sky-900"
       : "bg-slate-50 text-slate-700 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800";
@@ -95,6 +98,7 @@ function StatusCell({ value }) {
 
 export default function LeadSummary({ rows, sourceDatabase = "valuexpert" }) {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [page, setPage] = useState(1);
   const [saving, setSaving] = useState(false);
   const [savedIds, setSavedIds] = useState(new Set());
@@ -102,11 +106,24 @@ export default function LeadSummary({ rows, sourceDatabase = "valuexpert" }) {
   const [error, setError] = useState("");
 
   const filteredRows = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    if (!needle) return rows || [];
+    let result = rows || [];
+    
+    if (statusFilter !== "ALL") {
+      result = result.filter(row => {
+        const s = (row.status || "").toUpperCase();
+        if (statusFilter === "NEW") return s === "NEW";
+        if (statusFilter === "PENDING") return s === "PENDING" || s === "IN_PROGRESS";
+        if (statusFilter === "CONFIRMED") return s === "CONVERTED" || s === "COMPLETED";
+        return false;
+      });
+    }
 
-    return (rows || []).filter((row) => LEAD_COLUMNS.some((column) => formatCell(row, column).toLowerCase().includes(needle)));
-  }, [rows, search]);
+    const needle = search.trim().toLowerCase();
+    if (needle) {
+      result = result.filter((row) => LEAD_COLUMNS.some((column) => formatCell(row, column).toLowerCase().includes(needle)));
+    }
+    return result;
+  }, [rows, search, statusFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -164,6 +181,32 @@ export default function LeadSummary({ rows, sourceDatabase = "valuexpert" }) {
         <div>
           <h2 className="text-base font-bold text-slate-950 dark:text-white">Lead Info</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">{filteredRows.length.toLocaleString()} displayed matches</p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+            <button
+              onClick={() => { setStatusFilter("ALL"); setPage(1); }}
+              className={`inline-flex items-center rounded-md px-3 py-1.5 transition-colors ${statusFilter === "ALL" ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"}`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => { setStatusFilter("NEW"); setPage(1); }}
+              className={`inline-flex items-center rounded-md px-3 py-1.5 transition-colors ${statusFilter === "NEW" ? "bg-sky-600 text-white" : "bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950 dark:text-sky-300 dark:hover:bg-sky-900"}`}
+            >
+              New
+            </button>
+            <button
+              onClick={() => { setStatusFilter("PENDING"); setPage(1); }}
+              className={`inline-flex items-center rounded-md px-3 py-1.5 transition-colors ${statusFilter === "PENDING" ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-300 dark:hover:bg-amber-900"}`}
+            >
+              Pending
+            </button>
+            <button
+              onClick={() => { setStatusFilter("CONFIRMED"); setPage(1); }}
+              className={`inline-flex items-center rounded-md px-3 py-1.5 transition-colors ${statusFilter === "CONFIRMED" ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-900"}`}
+            >
+              Confirmed
+            </button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2 sm:items-center">
           <SearchBar value={search} onChange={handleSearch} placeholder="Search leads" />

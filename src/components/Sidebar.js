@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Database, Home, Moon, RefreshCcw, Sun, Table2 } from "lucide-react";
+import { Database, Home, LogOut, Moon, RefreshCcw, Sun, Table2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { DATABASE_DISPLAY_NAMES, MANAGER_DATABASE } from "@/config/databases";
 
 export default function Sidebar({
@@ -13,6 +15,20 @@ export default function Sidebar({
   onToggleDarkMode,
 }) {
   const activeDatabase = database || "overview";
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((data) => { if (data.authenticated) setCurrentUser(data.user); })
+      .catch(() => {});
+  }, []);
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  }
 
   return (
     <aside className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-slate-200 bg-white px-5 py-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 lg:block">
@@ -85,6 +101,32 @@ export default function Sidebar({
         </div>
         <p className="mt-4 break-all text-sm font-bold text-slate-950 dark:text-white">{DATABASE_DISPLAY_NAMES[activeDatabase] || activeDatabase}</p>
       </div>
+
+      {/* User info + logout */}
+      {currentUser && (
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-indigo-600 text-xs font-bold text-white">
+                {currentUser.username[0].toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-bold text-slate-900 dark:text-white">{currentUser.username}</p>
+                <p className="truncate text-xs capitalize text-slate-500 dark:text-slate-400">{currentUser.role}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Logout"
+              className="ml-2 flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400 transition-colors"
+            >
+              <LogOut size={16} />
+              Logout
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="absolute bottom-6 left-5 right-5 grid grid-cols-2 gap-3">
         <button

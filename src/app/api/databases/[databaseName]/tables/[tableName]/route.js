@@ -23,10 +23,25 @@ export async function GET(_request, { params }) {
     const rows = maskSensitiveRows(await query(`SELECT * FROM ${qualifiedTable} LIMIT 100`), columns);
     const rowCount = await getTableRowCount(databaseName, tableName);
 
+    let statusCounts = {};
+    if (tableName === "Lead" || tableName === "RegistrationLead") {
+      try {
+        const counts = await query(`SELECT status, COUNT(*) as count FROM ${qualifiedTable} GROUP BY status`);
+        counts.forEach(row => {
+          if (row.status) {
+            statusCounts[row.status] = Number(row.count);
+          }
+        });
+      } catch (e) {
+        // Ignore if column doesn't exist for some reason
+      }
+    }
+
     return NextResponse.json({
       database: databaseName,
       tableName,
       totalRecords: rowCount,
+      statusCounts,
       columns,
       rows,
       limit: 100,

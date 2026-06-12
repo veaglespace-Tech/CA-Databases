@@ -9,6 +9,9 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "jose": "^6.2.3",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.468.0",
     "mysql2": "^3.11.5",
     "next": "^15.0.4",

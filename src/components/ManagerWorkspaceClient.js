@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, RefreshCcw, Trash2, Trash, FileDown } from "lucide-react";
+import { AlertTriangle, RefreshCcw, Trash2, Trash, FileDown, Shield, LogOut, Crown } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Breadcrumb from "@/components/Breadcrumb";
 import SearchBar from "@/components/SearchBar";
 import { TableSkeleton } from "@/components/Skeletons";
 import { DATABASE_DISPLAY_NAMES, MANAGER_DATABASE } from "@/config/databases";
 import { downloadCsv } from "@/utils/exportCsv";
+import AuthUsersPanel from "@/components/AuthUsersPanel";
 
 const EMPTY_TEXT = "Not provided";
 
@@ -131,8 +133,11 @@ function StatusCell({ value }) {
   const label = displayValue(value) || EMPTY_TEXT;
   const isConverted = label === "CONVERTED";
   const isNew = label === "NEW";
+  const isPending = label === "PENDING" || label === "IN_PROGRESS" || label === "QUALIFIED";
   const className = isConverted
     ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:ring-emerald-900"
+    : isPending
+      ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:ring-amber-900"
     : isNew
       ? "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950 dark:text-sky-200 dark:ring-sky-900"
       : "bg-slate-50 text-slate-700 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800";
@@ -148,6 +153,22 @@ function RoleCell({ value }) {
     : "bg-slate-50 text-slate-700 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800";
 
   return <span className={`inline-flex h-7 items-center rounded-md px-2 text-xs font-bold ring-1 ${className}`}>{label}</span>;
+}
+
+function StatusLegend() {
+  return (
+    <div className="flex flex-wrap gap-2 text-xs font-bold">
+      <span className="inline-flex items-center rounded-md bg-sky-50 px-2 py-1 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-950 dark:text-sky-200 dark:ring-sky-900">
+        New
+      </span>
+      <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:ring-amber-900">
+        Pending
+      </span>
+      <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:ring-emerald-900">
+        Added / Converted
+      </span>
+    </div>
+  );
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }) {
@@ -187,7 +208,39 @@ function renderCell(row, col, formatFn) {
 }
 
 export default function ManagerWorkspaceClient() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("leads");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("manager_active_tab");
+      if (saved) {
+        setActiveTab(saved);
+      }
+    }
+  }, []);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("manager_active_tab", tab);
+    }
+  };
+
+  // --- Auth state ---
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((data) => { if (data.authenticated) setCurrentUser(data.user); })
+      .catch(() => {});
+  }, []);
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  }
 
   // --- Registration Lead state ---
   const [leads, setLeads] = useState([]);
@@ -462,27 +515,51 @@ export default function ManagerWorkspaceClient() {
             {/* Header */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <Breadcrumb databaseName={MANAGER_DATABASE} tableName={activeTab === "leads" ? "RegistrationLead" : activeTab === "lead" ? "Lead" : "User"} />
+                <Breadcrumb databaseName={MANAGER_DATABASE} tableName={activeTab === "leads" ? "RegistrationLead" : activeTab === "lead" ? "Lead" : activeTab === "auth" ? "Auth" : "User"} />
                 <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-white">
-                  CEO_CaLeads {activeTab === "leads" ? "RegistrationLead" : activeTab === "lead" ? "Lead" : "User"}
+                  CEO_CaLeads {activeTab === "leads" ? "RegistrationLead" : activeTab === "lead" ? "Lead" : activeTab === "auth" ? "Auth" : "User"}
                 </h1>
                 <p className="mt-1 text-sm font-semibold text-brand-700 dark:text-brand-100">{DATABASE_DISPLAY_NAMES[MANAGER_DATABASE]}</p>
+                {activeTab !== "users" && activeTab !== "auth" ? <div className="mt-3"><StatusLegend /></div> : null}
               </div>
-              <button
-                type="button"
-                onClick={activeTab === "leads" ? loadLeads : activeTab === "lead" ? loadSourceLeads : loadUsers}
-                className="flex h-11 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-bold text-white hover:bg-brand-700"
-              >
-                <RefreshCcw size={17} aria-hidden="true" />
-                Refresh
-              </button>
+              <div className="flex items-center gap-3">
+                {currentUser && (
+                  <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-indigo-600 text-xs font-bold text-white">
+                      {currentUser.username[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">{currentUser.username}</p>
+                      <p className="text-xs capitalize text-slate-500 dark:text-slate-400">{currentUser.role}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      title="Logout"
+                      className="ml-1 rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                    >
+                      <LogOut size={15} />
+                    </button>
+                  </div>
+                )}
+                {activeTab !== "auth" && (
+                  <button
+                    type="button"
+                    onClick={activeTab === "leads" ? loadLeads : activeTab === "lead" ? loadSourceLeads : loadUsers}
+                    className="flex h-11 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-bold text-white hover:bg-brand-700"
+                  >
+                    <RefreshCcw size={17} aria-hidden="true" />
+                    Refresh
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Tabs */}
             <div className="mt-6 flex gap-2 border-b border-slate-200 dark:border-slate-800">
               <button
                 type="button"
-                onClick={() => setActiveTab("leads")}
+                onClick={() => handleTabChange("leads")}
                 className={`h-10 px-4 text-sm font-bold transition-colors ${
                   activeTab === "leads"
                     ? "border-b-2 border-brand-600 text-brand-700 dark:text-brand-300"
@@ -493,7 +570,7 @@ export default function ManagerWorkspaceClient() {
                 </button>
               <button
                 type="button"
-                onClick={() => setActiveTab("lead")}
+                onClick={() => handleTabChange("lead")}
                 className={`h-10 px-4 text-sm font-bold transition-colors ${
                   activeTab === "lead"
                     ? "border-b-2 border-brand-600 text-brand-700 dark:text-brand-300"
@@ -504,7 +581,7 @@ export default function ManagerWorkspaceClient() {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab("users")}
+                onClick={() => handleTabChange("users")}
                 className={`h-10 px-4 text-sm font-bold transition-colors ${
                   activeTab === "users"
                     ? "border-b-2 border-brand-600 text-brand-700 dark:text-brand-300"
@@ -513,6 +590,19 @@ export default function ManagerWorkspaceClient() {
               >
                 User
               </button>
+              {currentUser?.role === "admin" && (
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("auth")}
+                  className={`flex h-10 items-center gap-1.5 px-4 text-sm font-bold transition-colors ${
+                    activeTab === "auth"
+                      ? "border-b-2 border-indigo-600 text-indigo-700 dark:text-indigo-300"
+                      : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <Shield size={14} /> Auth Users
+                </button>
+              )}
             </div>
 
             {/* Error banners */}
@@ -546,12 +636,19 @@ export default function ManagerWorkspaceClient() {
               </div>
             ) : null}
 
+            {/* Auth Panel */}
+            {activeTab === "auth" && (
+              <section className="mt-6 rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                <AuthUsersPanel currentUser={currentUser} />
+              </section>
+            )}
+
             {/* Content */}
-            {loading ? (
+            {activeTab !== "auth" && loading ? (
               <div className="mt-6">
                 <TableSkeleton />
               </div>
-            ) : (
+            ) : activeTab !== "auth" ? (
               <section className="mt-6 rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
                 {/* Toolbar */}
                 <div className="flex flex-col gap-3 border-b border-slate-200 p-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
@@ -783,7 +880,7 @@ export default function ManagerWorkspaceClient() {
                   )
                 )}
               </section>
-            )}
+            ) : null}
           </div>
         </main>
       </div>

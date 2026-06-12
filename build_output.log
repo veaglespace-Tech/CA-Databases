@@ -1,0 +1,26 @@
+
+> valuexpert-db-dashboard@1.0.0 build
+> next build
+
+   ▲ Next.js 15.5.19
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 4.3s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/6) ...
+ ⨯ useSearchParams() should be wrapped in a suspense boundary at page "/login". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+    at g (/home/akshay/Desktop/DatabasesInfo/.next/server/chunks/792.js:1:81237)
+    at m (/home/akshay/Desktop/DatabasesInfo/.next/server/chunks/792.js:9:13802)
+    at m (/home/akshay/Desktop/DatabasesInfo/.next/server/app/login/page.js:1:2156)
+    at n3 (/home/akshay/Desktop/DatabasesInfo/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:82831)
+    at n6 (/home/akshay/Desktop/DatabasesInfo/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:84601)
+    at n6 (/home/akshay/Desktop/DatabasesInfo/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:101560)
+    at n5 (/home/akshay/Desktop/DatabasesInfo/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:104801)
+    at n7 (/home/akshay/Desktop/DatabasesInfo/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:102219)
+    at ia (/home/akshay/Desktop/DatabasesInfo/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:108211)
+    at ie (/home/akshay/Desktop/DatabasesInfo/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:106833)
+Error occurred prerendering page "/login". Read more: https://nextjs.org/docs/messages/prerender-error
+Export encountered an error on /login/page: /login, exiting the build.
+ ⨯ Next.js build worker exited with code: 1 and signal: null
