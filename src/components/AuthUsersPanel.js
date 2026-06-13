@@ -3,30 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Shield, Plus, Pencil, Trash2, X, Check, Eye, EyeOff,
-  UserCheck, UserX, RefreshCw, Key, Mail, User, Crown
+  UserCheck, UserX, RefreshCw, Key, Mail, User
 } from "lucide-react";
-
-function RoleBadge({ role }) {
-  if (role === "admin") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-1 text-xs font-bold text-purple-700 ring-1 ring-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:ring-purple-900">
-        <Crown size={12} /> Admin
-      </span>
-    );
-  }
-  if (role === "manager") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700 ring-1 ring-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:ring-indigo-900">
-        Manager
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800">
-      Viewer
-    </span>
-  );
-}
 
 function ConfirmDialog({ message, onConfirm, onCancel }) {
   return (
@@ -60,7 +38,6 @@ function UserFormModal({ user, onClose, onSave }) {
     username: user?.username || "",
     email: user?.email || "",
     password: "",
-    role: user?.role || "viewer",
     is_active: user?.is_active ?? 1,
   });
   const [showPass, setShowPass] = useState(false);
@@ -79,7 +56,7 @@ function UserFormModal({ user, onClose, onSave }) {
     try {
       let res, data;
       if (isEdit) {
-        const body = { username: form.username, email: form.email, role: form.role, is_active: form.is_active };
+        const body = { username: form.username, email: form.email, is_active: form.is_active };
         if (form.password) body.password = form.password;
         res = await fetch(`/api/auth/users/${user.id}`, {
           method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -136,6 +113,10 @@ function UserFormModal({ user, onClose, onSave }) {
             </div>
           </div>
 
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+            Auth is now username, email, and password only.
+          </div>
+
           {/* password */}
           <div>
             <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -153,16 +134,7 @@ function UserFormModal({ user, onClose, onSave }) {
             </div>
           </div>
 
-          {/* role */}
-          <div>
-            <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Role</label>
-            <select name="role" value={form.role} onChange={handleChange}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:focus:border-brand-500">
-              <option value="viewer">Viewer</option>
-              <option value="manager">Manager</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
+
 
           {/* active toggle (edit only) */}
           {isEdit && (
@@ -247,7 +219,7 @@ export default function AuthUsersPanel({ currentUser }) {
   const handleModalClose = () => setModal(null);
   const handleModalSave = () => { setModal(null); fetchUsers(); };
 
-  const isAdmin = currentUser?.role === "admin";
+  const canManage = Boolean(currentUser);
 
   return (
     <div className="p-4 sm:p-6">
@@ -267,7 +239,7 @@ export default function AuthUsersPanel({ currentUser }) {
             className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900">
             <RefreshCw size={15} /> Refresh
           </button>
-          {isAdmin && (
+          {canManage && (
             <button onClick={() => setModal("create")}
               className="flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-brand-700">
               <Plus size={16} /> New User
@@ -286,7 +258,7 @@ export default function AuthUsersPanel({ currentUser }) {
           <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-900">
-                {["ID","Username","Email","Role","Status","Last Login","Actions"].map(h => (
+                {["ID","Username","Email","Status","Last Login","Actions"].map(h => (
                   <th key={h} className="border-b border-slate-200 px-4 py-3 font-bold text-slate-700 dark:border-slate-800 dark:text-slate-200">{h}</th>
                 ))}
               </tr>
@@ -304,18 +276,18 @@ export default function AuthUsersPanel({ currentUser }) {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{u.email}</td>
-                  <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
+
                   <td className="px-4 py-3">
-                    <button
+                      <button
                       type="button"
-                      onClick={() => isAdmin && handleToggleStatus(u)}
-                      disabled={!isAdmin}
+                      onClick={() => canManage && handleToggleStatus(u)}
+                      disabled={!canManage}
                       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ring-1 transition-colors ${
                         u.is_active
                           ? "bg-emerald-50 text-emerald-700 ring-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-900 dark:hover:bg-emerald-900"
                           : "bg-red-50 text-red-700 ring-red-200 hover:bg-red-100 dark:bg-red-950 dark:text-red-300 dark:ring-red-900 dark:hover:bg-red-900"
-                      } ${!isAdmin && "cursor-default"}`}
-                      title={isAdmin ? "Click to toggle status" : ""}
+                      } ${!canManage && "cursor-default"}`}
+                      title={canManage ? "Click to toggle status" : ""}
                     >
                       {u.is_active ? <><UserCheck size={12} /> Active</> : <><UserX size={12} /> Inactive</>}
                     </button>
@@ -324,7 +296,7 @@ export default function AuthUsersPanel({ currentUser }) {
                     {u.last_login ? new Date(u.last_login).toLocaleString() : "Never"}
                   </td>
                   <td className="px-4 py-3">
-                    {isAdmin && (
+                    {canManage && (
                       <div className="flex items-center gap-2">
                         <button onClick={() => setModal(u)}
                           className="flex h-8 items-center gap-1.5 rounded-md bg-indigo-50 px-3 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 dark:hover:bg-indigo-900">

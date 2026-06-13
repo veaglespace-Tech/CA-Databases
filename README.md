@@ -20,6 +20,8 @@ DB_PASSWORD=your_password
 
 Use a MySQL account with read-only permissions for the `valuexpert`-named databases you want to inspect.
 
+If your `CEO_CaLeads.Auth` table still has a `role` column, run `sql/remove_auth_role.sql` once to align the schema with the app.
+
 ## Run
 
 ```bash

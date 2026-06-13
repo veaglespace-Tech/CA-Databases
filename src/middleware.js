@@ -42,7 +42,6 @@ export async function middleware(request) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-auth-id", String(payload.id));
   requestHeaders.set("x-auth-username", payload.username);
-  requestHeaders.set("x-auth-role", payload.role);
 
   return NextResponse.next({ request: { headers: requestHeaders } });
 }

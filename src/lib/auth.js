@@ -77,17 +77,11 @@ export async function getAuthPayload(request) {
  * Guard helper – returns a 401 Response when not authenticated.
  * Usage:  const guard = await requireAuth(request); if (guard) return guard;
  */
-export async function requireAuth(request, roles = []) {
+export async function requireAuth(request) {
   const payload = await getAuthPayload(request);
   if (!payload) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-  if (roles.length && !roles.includes(payload.role)) {
-    return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403,
       headers: { "Content-Type": "application/json" },
     });
   }

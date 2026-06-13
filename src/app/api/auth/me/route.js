@@ -18,7 +18,7 @@ export async function GET(request) {
 
     return NextResponse.json({
       authenticated: true,
-      user: { id: user.id, username: user.username, email: user.email, role: user.role },
+      user: { id: user.id, username: user.username, email: user.email },
     });
   } catch (err) {
     console.error("[auth/me]", err);

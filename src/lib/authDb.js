@@ -26,7 +26,7 @@ export async function findAuthByEmail(email) {
 
 export async function findAuthById(id) {
   const rows = await query(
-    `SELECT id, username, email, role, is_active, last_login, created_at, updated_at
+    `SELECT id, username, email, is_active, last_login, created_at, updated_at
      FROM \`${AUTH_DB}\`.\`Auth\` WHERE id = ? LIMIT 1`,
     [id]
   );
@@ -35,7 +35,7 @@ export async function findAuthById(id) {
 
 export async function getAllAuthUsers() {
   const rows = await query(
-    `SELECT id, username, email, role, is_active, last_login, created_at, updated_at
+    `SELECT id, username, email, is_active, last_login, created_at, updated_at
      FROM \`${AUTH_DB}\`.\`Auth\`
      ORDER BY created_at DESC`
   );
@@ -44,18 +44,18 @@ export async function getAllAuthUsers() {
 
 // ── Write ────────────────────────────────────────────────────────────────────
 
-export async function createAuthUser({ username, email, password, role = "viewer" }) {
+export async function createAuthUser({ username, email, password }) {
   const password_hash = await hashPassword(password);
   const result = await query(
-    `INSERT INTO \`${AUTH_DB}\`.\`Auth\` (username, email, password_hash, role)
-     VALUES (?, ?, ?, ?)`,
-    [username, email, password_hash, role]
+    `INSERT INTO \`${AUTH_DB}\`.\`Auth\` (username, email, password_hash)
+     VALUES (?, ?, ?)`,
+    [username, email, password_hash]
   );
-  return { id: result.insertId, username, email, role };
+  return { id: result.insertId, username, email };
 }
 
 export async function updateAuthUser(id, fields) {
-  const allowed = ["username", "email", "role", "is_active"];
+  const allowed = ["username", "email", "is_active"];
   const updates = [];
   const values = [];
 
@@ -114,7 +114,6 @@ export async function seedDefaultAdmin() {
     username: "admin",
     email: "admin@ceocaleads.local",
     password: "Admin@1234",
-    role: "admin",
   });
 
   return { seeded: true, user: admin };

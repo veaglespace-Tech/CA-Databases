@@ -36,7 +36,7 @@ export async function POST(request) {
     }
 
     // Issue JWT
-    const payload = { id: user.id, username: user.username, email: user.email, role: user.role };
+    const payload = { id: user.id, username: user.username, email: user.email };
     const token = await signToken(payload);
 
     // Update last login (fire-and-forget)
@@ -44,7 +44,7 @@ export async function POST(request) {
 
     const response = NextResponse.json({
       message: "Login successful",
-      user: { id: user.id, username: user.username, email: user.email, role: user.role },
+      user: { id: user.id, username: user.username, email: user.email },
     });
 
     return setAuthCookie(response, token);

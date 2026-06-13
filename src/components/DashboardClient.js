@@ -140,7 +140,6 @@ export default function DashboardClient({ databaseName = null }) {
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{currentUser.username}</p>
-                      <p className="text-xs capitalize text-slate-500 dark:text-slate-400 leading-tight">{currentUser.role}</p>
                     </div>
                     <button
                       type="button"

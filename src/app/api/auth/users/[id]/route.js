@@ -4,9 +4,9 @@ import { updateAuthUser, deleteAuthUser } from "@/lib/authDb";
 
 export const dynamic = "force-dynamic";
 
-// PATCH /api/auth/users/[id]  →  update user (admin only)
+// PATCH /api/auth/users/[id]  →  update user (authenticated users)
 export async function PATCH(request, { params }) {
-  const guard = await requireAuth(request, ["admin"]);
+  const guard = await requireAuth(request);
   if (guard) return guard;
 
   try {
@@ -24,9 +24,9 @@ export async function PATCH(request, { params }) {
   }
 }
 
-// DELETE /api/auth/users/[id]  →  delete user (admin only)
+// DELETE /api/auth/users/[id]  →  delete user (authenticated users)
 export async function DELETE(request, { params }) {
-  const guard = await requireAuth(request, ["admin"]);
+  const guard = await requireAuth(request);
   if (guard) return guard;
 
   try {

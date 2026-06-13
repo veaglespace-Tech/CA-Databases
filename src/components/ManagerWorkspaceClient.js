@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, RefreshCcw, Trash2, Trash, FileDown, Shield, LogOut, Crown } from "lucide-react";
+import { AlertTriangle, RefreshCcw, Trash2, Trash, FileDown, Shield, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Breadcrumb from "@/components/Breadcrumb";
@@ -530,7 +530,6 @@ export default function ManagerWorkspaceClient() {
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-900 dark:text-white">{currentUser.username}</p>
-                      <p className="text-xs capitalize text-slate-500 dark:text-slate-400">{currentUser.role}</p>
                     </div>
                     <button
                       type="button"
@@ -590,7 +589,7 @@ export default function ManagerWorkspaceClient() {
               >
                 User
               </button>
-              {currentUser?.role === "admin" && (
+              {currentUser && (
                 <button
                   type="button"
                   onClick={() => handleTabChange("auth")}

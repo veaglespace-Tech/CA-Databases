@@ -112,7 +112,6 @@ export default function Sidebar({
               </div>
               <div className="min-w-0">
                 <p className="truncate text-xs font-bold text-slate-900 dark:text-white">{currentUser.username}</p>
-                <p className="truncate text-xs capitalize text-slate-500 dark:text-slate-400">{currentUser.role}</p>
               </div>
             </div>
             <button
